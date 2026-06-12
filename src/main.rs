@@ -58,7 +58,7 @@ fn main() -> ! {
     );
 
     // Configure pin, get ownership of that pin
-    let mut led_pin = pins.gpio15.into_push_pull_output();
+    let mut led_pin = pins.gpio25.into_push_pull_output();
 
     // Move ownership of TIMER0 peripheral to create Timer struct
     let mut timer = hal::Timer::new_timer0(
