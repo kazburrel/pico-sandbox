@@ -66,19 +66,23 @@ fn main() -> ! {
         &mut pac.RESETS,
         &clocks,
     );
+    
+    // let mut delay = hal::Timer::new_timer0(pac.TIMER0, &mut pac.RESETS);
+    let short_delay: u32 = 100;
+    let long_delay: u32 = 700;
 
     // Blink Loop
-    loop {
-        // Set pin high
-        led_pin.set_high().unwrap();
+loop {
+    led_pin.set_high().unwrap();
+    timer.delay_ms(short_delay);
 
-        // Wait 500ms
-        timer.delay_ms(500);
+    led_pin.set_low().unwrap();
+    timer.delay_ms(short_delay);
 
-        // Set pin low
-        led_pin.set_low().unwrap();
+    led_pin.set_high().unwrap();
+    timer.delay_ms(short_delay);
 
-        // Wait 500ms
-        timer.delay_ms(500);
-    }
+    led_pin.set_low().unwrap();
+    timer.delay_ms(long_delay);
+}
 }
