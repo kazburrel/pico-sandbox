@@ -4,12 +4,13 @@
 // We need to write our own panic handler
 use core::panic::PanicInfo;
 
-// Alias our HAL
-use rp235x_hal as hal;
-
 // Import traits for embedded abstractions
 use embedded_hal::delay::DelayNs;
 use embedded_hal::digital::OutputPin;
+
+
+// Alias our HAL
+use rp235x_hal as hal
 
 // Custom panic handler: just loop forever
 #[panic_handler]
@@ -25,6 +26,15 @@ pub static IMAGE_DEF: hal::block::ImageDef = hal::block::ImageDef::secure_exe();
 // Set external crystal frequency
 const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 
+// Our possible LED modes.
+// Clone + Copy lets us reuse current_mode inside the loop without moving it.
+#[derive(Clone, Copy)]
+enum BlinkMode {
+    Normal,
+    Heartbeat,
+    Panic,
+}
+
 // Main entrypoint (custom defined for embedded targets)
 #[hal::entry]
 fn main() -> ! {
@@ -34,6 +44,7 @@ fn main() -> ! {
     // Set up the watchdog and clocks
     let mut watchdog = hal::Watchdog::new(pac.WATCHDOG);
 
+    // Start the system clocks and PLLs.
     let clocks = hal::clocks::init_clocks_and_plls(
         XOSC_CRYSTAL_FREQ,
         pac.XOSC,
@@ -48,6 +59,7 @@ fn main() -> ! {
 
     // Single-cycle I/O block (fast GPIO)
     let sio = hal::Sio::new(pac.SIO);
+
 
     // Split off ownership of Peripherals struct, set pins to default state
     let pins = hal::gpio::Pins::new(
@@ -66,23 +78,67 @@ fn main() -> ! {
         &mut pac.RESETS,
         &clocks,
     );
-    
+
     // let mut delay = hal::Timer::new_timer0(pac.TIMER0, &mut pac.RESETS);
     let short_delay: u32 = 100;
     let long_delay: u32 = 700;
 
-    // Blink Loop
-loop {
-    led_pin.set_high().unwrap();
-    timer.delay_ms(short_delay);
+    // Pick the current LED mode.
+    // Change this to Normal, Heartbeat, or Panic.
+    let current_mode = BlinkMode::Panic;
 
-    led_pin.set_low().unwrap();
-    timer.delay_ms(short_delay);
+    // Main program loop.
+    loop {
+        // Pick the blink pattern based on current_mode.
+        match current_mode {
+            BlinkMode::Normal => {
+                // Normal blink: ON 500ms, OFF 500ms.
+                blink_once(&mut led_pin, &mut timer, 500, 500);
+            }
 
-    led_pin.set_high().unwrap();
-    timer.delay_ms(short_delay);
+            BlinkMode::Heartbeat => {
+                // First quick blink: ON 100ms, OFF 100ms.
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
 
-    led_pin.set_low().unwrap();
-    timer.delay_ms(long_delay);
+                // Second quick blink: ON 100ms, then long OFF pause.
+                blink_once(&mut led_pin, &mut timer, short_delay, long_delay);
+            }
+
+            BlinkMode::Panic => {
+                // Panic blink: very fast blinking.
+                blink_once(&mut led_pin, &mut timer, 50, 50);
+            }
+        }
+    }
 }
+
+// Blink the LED once using the given ON and OFF delay times.
+//
+// led_pin and timer are borrowed mutably because:
+// - led_pin changes state when we call set_high() / set_low()
+// - timer is used to wait
+fn blink_once<PIN, TIMER>(
+    led_pin: &mut PIN,
+    timer: &mut TIMER,
+    on_delay: u32,
+    off_delay: u32,
+)
+where
+    // PIN can be any type that behaves like an output pin.
+    PIN: OutputPin,
+
+    // TIMER can be any type that behaves like a delay timer.
+    TIMER: DelayNs,
+{
+    // Turn LED on.
+    led_pin.set_high().unwrap();
+
+    // Keep it on for on_delay milliseconds.
+    timer.delay_ms(on_delay);
+
+    // Turn LED off.
+    led_pin.set_low().unwrap();
+
+    // Keep it off for off_delay milliseconds.
+    timer.delay_ms(off_delay);
 }
