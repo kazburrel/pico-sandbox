@@ -10,7 +10,7 @@ use embedded_hal::digital::OutputPin;
 
 
 // Alias our HAL
-use rp235x_hal as hal
+use rp235x_hal as hal;
 
 // Custom panic handler: just loop forever
 #[panic_handler]
@@ -29,10 +29,12 @@ const XOSC_CRYSTAL_FREQ: u32 = 12_000_000;
 // Our possible LED modes.
 // Clone + Copy lets us reuse current_mode inside the loop without moving it.
 #[derive(Clone, Copy)]
+#[allow(dead_code)]
 enum BlinkMode {
     Normal,
     Heartbeat,
     Panic,
+    Sos,
 }
 
 // Main entrypoint (custom defined for embedded targets)
@@ -85,8 +87,7 @@ fn main() -> ! {
 
     // Pick the current LED mode.
     // Change this to Normal, Heartbeat, or Panic.
-    let current_mode = BlinkMode::Panic;
-
+   let current_mode: BlinkMode = BlinkMode::Sos;
     // Main program loop.
     loop {
         // Pick the blink pattern based on current_mode.
@@ -107,6 +108,32 @@ fn main() -> ! {
             BlinkMode::Panic => {
                 // Panic blink: very fast blinking.
                 blink_once(&mut led_pin, &mut timer, 50, 50);
+            }
+
+            BlinkMode::Sos => {
+                // 3 short (S)
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
+
+                // gap between letters
+                timer.delay_ms(long_delay);
+
+                // 3 long (O)
+                blink_once(&mut led_pin, &mut timer, long_delay, short_delay);
+                blink_once(&mut led_pin, &mut timer, long_delay, short_delay);
+                blink_once(&mut led_pin, &mut timer, long_delay, short_delay);
+
+                // gap between letters
+                timer.delay_ms(long_delay);
+
+                // 3 short (S)
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
+                blink_once(&mut led_pin, &mut timer, short_delay, short_delay);
+
+                // long pause before repeating
+                timer.delay_ms(2000);
             }
         }
     }
